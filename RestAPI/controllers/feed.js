@@ -5,18 +5,27 @@ const Post = require("../models/post");
 
 exports.getPosts = (req, res, next) => {
   // if using mondodg or file storage to serve all posts
+
+  //we could add pagination with query param  http.com/feed/posts?page=1
+  //   const currentPage = req.query.page || 1;
+  //   const perpage = 2;
+  //   let totalItems;
   //   Post.find()
+  //     .countDocuments()
+  //     .then((count) => {
+  //       totalItems = count;
+  //       return Post.find()
+  //         .skip((currentPage - 1) * perpage)
+  //         .limit(perPage);
+  //     })
   //     .then((posts) => {
   //       res.status(200).json({
   //         posts: posts,
+  //         totalItems: totalItems,
   //       });
   //     })
-  //     .catch((err) => {
-  //       if (!err.statusCode) {
-  //         err.statusCode = 500;
-  //       }
-  //       next(err);
-  //     });
+  //     .catch();
+  // pagination end
   res.status(200).json({
     posts: [
       {
