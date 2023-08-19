@@ -19,10 +19,14 @@ exports.getPosts = (req, res, next) => {
 exports.createPost = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(422).json({
-      message: "Validation Failed, entered data is incorrect",
-      errors: errors.array(),
-    });
+    const error = new Error("Validation Failed, entered data is incorrect");
+    error.statusCode = 422;
+    throw error;
+    // return res.status(422).json({
+    //   message: "Validation Failed, entered data is incorrect",
+    //   errors: errors.array(),
+    // });
+    //now we are handling errors generally by global handling of errors
   }
   const title = req.body.title;
   const content = req.body.content;
@@ -34,6 +38,7 @@ exports.createPost = (req, res, next) => {
     creator: { name: "shubh" },
     createdAt: new Date(),
   });
+  // create post in db
   post
     .save()
     .then((result) => {
@@ -43,7 +48,11 @@ exports.createPost = (req, res, next) => {
       });
     })
     .catch((err) => {
-      console("error due to post creation");
+      if (!err.statusCode) {
+        err.statusCode = 500;
+      }
+      //here throwing wont do trick
+      next(err);
+      //   console("error due to post creation");
     });
-  // create post in db
 };
