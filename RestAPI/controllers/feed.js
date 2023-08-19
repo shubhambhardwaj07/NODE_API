@@ -1,7 +1,22 @@
+const fs = require("fs");
+const path = require("path");
 const { validationResult } = require("express-validator");
 const Post = require("../models/post");
 
 exports.getPosts = (req, res, next) => {
+  // if using mondodg or file storage to serve all posts
+  //   Post.find()
+  //     .then((posts) => {
+  //       res.status(200).json({
+  //         posts: posts,
+  //       });
+  //     })
+  //     .catch((err) => {
+  //       if (!err.statusCode) {
+  //         err.statusCode = 500;
+  //       }
+  //       next(err);
+  //     });
   res.status(200).json({
     posts: [
       {
@@ -28,6 +43,21 @@ exports.createPost = (req, res, next) => {
     // });
     //now we are handling errors generally by global handling of errors
   }
+  if (!req.file) {
+    const error = new Error("No image provided");
+    error.statusCode = 422;
+    throw error;
+  }
+  const imageUrl = req.file.path; //use this below
+  //when we use images we cant use content-type as application/json
+  //so we have to switch back to so do the below in react code
+  //   const formData = new FormData()
+  //   formData.append('title',postData.title)
+  //   formData.append('content',postData.content)
+  //   formData.append('image',postData.image)
+  //   formData.append('title',postData.title)
+  //and just remove header form front end and just give body: formDaata
+
   const title = req.body.title;
   const content = req.body.content;
 
@@ -55,4 +85,104 @@ exports.createPost = (req, res, next) => {
       next(err);
       //   console("error due to post creation");
     });
+};
+
+exports.getPost = (req, res, next) => {
+  const postId = req.params.postId;
+  Post.findById(postId)
+    .then((post) => {
+      if (!post) {
+        const error = new Error("Could not find post");
+        error.statusCode = 404;
+        throw error;
+      }
+      res.status(200).json({ post: post });
+    })
+    .catch((err) => {
+      if (!err.statusCode) {
+        err.statusCode = 500;
+      }
+      //here throwing wont do trick
+      next(err);
+    });
+};
+
+exports.updatePost = (req, res, next) => {
+  const postId = req.params.postId;
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    const error = new Error("Validation Failed, entered data is incorrect");
+    error.statusCode = 422;
+    throw error;
+  }
+  const title = req.body.title;
+  const content = req.body.content;
+  let imageUrl = req.body.image;
+  //would be there due to multer
+  if (req.file) {
+    imageUrl = req.file.path;
+  }
+  if (!imageUrl) {
+    const error = new Error("No file picked");
+    error.statusCode = 422;
+    throw error;
+  }
+
+  Post.findById(postId)
+    .then((post) => {
+      if (!post) {
+        const error = new Error("Could not find post");
+        error.statusCode = 404;
+        throw error;
+      }
+      if (imageUrl !== post.imageUrl) {
+        clearImage(post.imageUrl);
+      }
+      post.title = title;
+      post.imageUrl = imageUrl;
+      post.content = content;
+      return post.save();
+    })
+    .then((result) => {
+      res.status(200).json({ message: "updated", post: result });
+    })
+    .catch((err) => {
+      if (!err.statusCode) {
+        err.statusCode = 500;
+      }
+      //here throwing wont do trick
+      next(err);
+    });
+};
+
+exports.deletePost = (req, res, next) => {
+  const postId = req.params.postId;
+  Post.findById(postId)
+    .then((post) => {
+      //check logged in user
+
+      if (!post) {
+        const error = new Error("Could not find post");
+        error.statusCode = 404;
+        throw error;
+      }
+      clearImage(post.imageUrl);
+      return Post.findByIdAndRemove(postId);
+    })
+    .then((result) => {
+      res.status(200).json({ message: "post deleted success" });
+    })
+    .catch((err) => {
+      if (!err.statusCode) {
+        err.statusCode = 500;
+      }
+      next(err);
+    });
+};
+
+const clearImage = (filePath) => {
+  filePath = path.join(__filename, "..", filePath);
+  fs.unlink(filePath, (err) => {
+    console.log("deletion of imagepath faikled");
+  });
 };
