@@ -2,6 +2,8 @@ const fs = require("fs");
 const path = require("path");
 const { validationResult } = require("express-validator");
 const Post = require("../models/post");
+const User = require("../models/user");
+const user = require("../models/user");
 
 exports.getPosts = (req, res, next) => {
   // if using mondodg or file storage to serve all posts
@@ -69,21 +71,31 @@ exports.createPost = (req, res, next) => {
 
   const title = req.body.title;
   const content = req.body.content;
+  let creator;
 
   const post = new Post({
     title: title,
     content: content,
     imageUrl: "images/duck.jpg",
-    creator: { name: "shubh" },
+    creator: req.userId,
     createdAt: new Date(),
   });
   // create post in db
   post
     .save()
     .then((result) => {
+      return User.findById(req.userId);
+    })
+    .then((user) => {
+      creator = user;
+      user.posts.push(post);
+      return user.save();
+    })
+    .then((result) => {
       res.status(201).json({
         message: "Post created successfully",
-        post: result,
+        post: post,
+        creator: { _id: creator._id, name: creator.name },
       });
     })
     .catch((err) => {
@@ -144,6 +156,11 @@ exports.updatePost = (req, res, next) => {
         error.statusCode = 404;
         throw error;
       }
+      if (post.creator.toString() === req.userId) {
+        const error = new Error("Not authorized");
+        error.statusCode = 403;
+        throw error;
+      }
       if (imageUrl !== post.imageUrl) {
         clearImage(post.imageUrl);
       }
@@ -175,8 +192,20 @@ exports.deletePost = (req, res, next) => {
         error.statusCode = 404;
         throw error;
       }
+      if (post.creator.toString() === req.userId) {
+        const error = new Error("Not authorized");
+        error.statusCode = 403;
+        throw error;
+      }
       clearImage(post.imageUrl);
       return Post.findByIdAndRemove(postId);
+    })
+    .then((result) => {
+      return user.findById(req.userId);
+    })
+    .then((user) => {
+      user.posts.pull(postId); //clearing the relation
+      return user.save();
     })
     .then((result) => {
       res.status(200).json({ message: "post deleted success" });
