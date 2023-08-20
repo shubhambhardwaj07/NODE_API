@@ -51,6 +51,16 @@ app.use(
   graphqlHTTP({
     schema: graphqlSchema,
     rootValue: graphqlResolver,
+    graphiql: true,
+    formatError(err) {
+      if (!err.originalError) {
+        return err;
+      }
+      const data = err.originalError.data;
+      const message = err.message || "error ocured";
+      const code = err.originalError.code || 500;
+      return { message: message, status: code, data: data };
+    },
   })
 );
 
@@ -67,3 +77,17 @@ mongoose
   .then()
   .catch((err) => console.log("mongo connect failed"));
 app.listen(8080);
+
+//// in front end
+// const graphqlQuery = {
+//   query: `
+//   mutation {
+//     createUser(userInput: {email:"test@test.com", name:"shubh", password:"test"}){
+//       _id
+//       email
+//     }
+//   }
+//   `
+// }
+// //in body of fetch
+// body: JSON.stringify(graphqlQuery)
